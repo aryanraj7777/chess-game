@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHESS: CHRONICLES | GEN-Z EDITION</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --neon-cyan: #00f2ff;
+            --neon-pink: #ff007b;
+            --bg-dark: #0a0a12;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        #header {
+            text-align: center;
+            padding: 20px;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            background: linear-gradient(to right, var(--neon-cyan), var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
+        }
+
+        #main-container {
+            display: flex;
+            gap: 30px;
+            padding: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* The Board Styling */
+        #myBoard {
+            width: 500px;
+            border: 4px solid #1e1e30;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5), 0 0 20px var(--neon-cyan);
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+        }
+
+        /* Story Side Panel */
+        #story-panel {
+            width: 350px;
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid var(--neon-pink);
+            padding: 20px;
+            border-radius: 0 15px 15px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-box {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #333;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .story-text {
+            font-style: italic;
+            color: var(--neon-cyan);
+            line-height: 1.6;
+            min-height: 100px;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: transparent;
+            color: white;
+            border: 1px solid var(--neon-cyan);
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: var(--neon-cyan);
+            color: black;
+            box-shadow: 0 0 15px var(--neon-cyan);
+        }
+
+        .difficulty-active {
+            background: var(--neon-pink) !important;
+            border-color: var(--neon-pink) !important;
+        }
+
+        /* Animation Classes */
+        .piece-capture {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>CHESS CHRONICLES</h1>
+    <div style="font-size: 0.8rem; opacity: 0.6;">A Story Through Time</div>
+</div>
+
+<div id="main-container">
+    <div id="myBoard"></div>
+
+    <div id="story-panel">
+        <div class="status-box">
+            <strong>ERA: </strong> <span id="era-name">6th Century India</span><br>
+            <strong>STATUS: </strong> <span id="game-status">White to move</span>
+        </div>
+        
+        <div class="story-text" id="story-content">
+            "The game begins as 'Chaturanga'. You are a Raja leading your four wings of the army: infantry, cavalry, elephants, and chariots."
+        </div>
+
+        <div class="controls">
+            <button id="btn-easy" onclick="setDiff(1)">Easy</button>
+            <button id="btn-med" class="difficulty-active" onclick="setDiff(2)">Med</button>
+            <button id="btn-hard" onclick="setDiff(3)">Hard</button>
+        </div>
+        <br>
+        <button onclick="undoMove()" style="width: 100%; border-color: gray;">Undo Move</button>
+    </div>
+</div>
+
+<script>
+    var board = null;
+    var game = new Chess();
+    var difficulty = 2; // Medium
+
+    // Story Beats
+    const stories = [
+        { move: 0, era: "Ancient India", text: "Welcome to the birth of strategy. In this era, the Queen was only a 'Mantri' (Advisor), moving just one square diagonally." },
+        { move: 10, era: "Islamic Golden Age", text: "Chess reaches Persia. The 'Shah' is in danger. Scientists and philosophers now use this game to map the stars." },
+        { move: 25, era: "Medieval Europe", text: "The 'Mad Queen' era begins. The piece becomes the most powerful on the board, reflecting the rise of powerful Queens in history." },
+        { move: 45, era: "The Grandmasters", text: "Classical strategy peaks. You are now fighting in the era of Bobby Fischer and Garry Kasparov." },
+        { move: 60, era: "Cybernetic Future", text: "Silicon vs Carbon. Can a human brain still compete with the cold logic of the machine?" }
+    ];
+
+    function updateStory() {
+        const moveCount = game.history().length;
+        const currentStory = [...stories].reverse().find(s => moveCount >= s.move);
+        
+        document.getElementById('era-name').innerText = currentStory.era;
+        gsap.to("#story-content", {opacity: 0, duration: 0.3, onComplete: () => {
+            document.getElementById('story-content').innerText = currentStory.text;
+            gsap.to("#story-content", {opacity: 1, duration: 0.3});
+        }});
+    }
+
+    // AI Logic: Simple Minimax with Alpha-Beta Pruning
+    function evaluateBoard(game) {
+        const pieces = { p: 10, n: 30, b: 30, r: 50, q: 90, k: 900 };
+        let totalValue = 0;
+        game.board().forEach(row => {
+            row.forEach(piece => {
+                if (piece) {
+                    const val = pieces[piece.type];
+                    totalValue += (piece.color === 'w' ? val : -val);
+                }
+            });
+        });
+        return totalValue;
+    }
+
+    function makeBestMove() {
+        const moves = game.moves();
+        if (moves.length === 0) return;
+
+        // Simple Random for Easy, Minimax for others
+        if (difficulty === 1) {
+            const randomIdx = Math.floor(Math.random() * moves.length);
+            game.move(moves[randomIdx]);
+        } else {
+            // Harder logic: looking 2-3 moves ahead
+            let bestMove = minimaxRoot(difficulty, game, true);
+            game.move(bestMove);
+        }
+        
+        board.position(game.fen());
+        updateStatus();
+    }
+
+    function minimaxRoot(depth, game, isMaximisingPlayer) {
+        var newGameMoves = game.moves();
+        var bestMove = -9999;
+        var bestMoveFound;
+
+        for(var i = 0; i < newGameMoves.length; i++) {
+            var newGameMove = newGameMoves[i]
+            game.move(newGameMove);
+            var value = minimax(depth - 1, game, -10000, 10000, !isMaximisingPlayer);
+            game.undo();
+            if(value >= bestMove) {
+                bestMove = value;
+                bestMoveFound = newGameMove;
+            }
+        }
+        return bestMoveFound;
+    }
+
+    function minimax(depth, game, alpha, beta, isMaximisingPlayer) {
+        if (depth === 0) return -evaluateBoard(game);
+        var newGameMoves = game.moves();
+        if (isMaximisingPlayer) {
+            var bestMove = -9999;
+            for (var i = 0; i < newGameMoves.length; i++) {
+                game.move(newGameMoves[i]);
+                bestMove = Math.max(bestMove, minimax(depth - 1, game, alpha, beta, !isMaximisingPlayer));
+                game.undo();
+                alpha = Math.max(alpha, bestMove);
+                if (beta <= alpha) return bestMove;
+            }
+            return bestMove;
+        } else {
+            var bestMove = 9999;
+            for (var i = 0; i < newGameMoves.length; i++) {
+                game.move(newGameMoves[i]);
+                bestMove = Math.min(bestMove, minimax(depth - 1, game, alpha, beta, !isMaximisingPlayer));
+                game.undo();
+                beta = Math.min(beta, bestMove);
+                if (beta <= alpha) return bestMove;
+            }
+            return bestMove;
+        }
+    }
+
+    // Board Configuration
+    function onDragStart (source, piece, position, orientation) {
+        if (game.game_over()) return false;
+        if (piece.search(/^b/) !== -1) return false;
+    }
+
+    function onDrop (source, target) {
+        var move = game.move({
+            from: source,
+            to: target,
+            promotion: 'q' 
+        });
+
+        if (move === null) return 'snapback';
+
+        // Animation for Capture
+        if (move.captured) {
+            gsap.fromTo("#myBoard", { x: -5 }, { x: 5, duration: 0.05, repeat: 5, yoyo: true });
+        }
+
+        updateStatus();
+        window.setTimeout(makeBestMove, 250);
+    }
+
+    function onSnapEnd () {
+        board.position(game.fen());
+    }
+
+    function updateStatus () {
+        let status = 'White to move';
+        if (game.in_checkmate()) status = 'GAME OVER: Black Wins';
+        else if (game.in_draw()) status = 'GAME OVER: Draw';
+        else if (game.in_check()) status = 'CHECK!';
+        
+        document.getElementById('game-status').innerText = status;
+        updateStory();
+    }
+
+    function setDiff(d) {
+        difficulty = d;
+        ['btn-easy', 'btn-med', 'btn-hard'].forEach((id, index) => {
+            document.getElementById(id).className = (index + 1 === d) ? 'difficulty-active' : '';
+        });
+    }
+
+    function undoMove() {
+        game.undo(); // Undo AI
+        game.undo(); // Undo Player
+        board.position(game.fen());
+        updateStatus();
+    }
+
+    var config = {
+        draggable: true,
+        position: 'start',
+        onDragStart: onDragStart,
+        onDrop: onDrop,
+        onSnapEnd: onSnapEnd,
+        pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+    };
+    board = Chessboard('myBoard', config);
+</script>
+
+</body>
+</html>
